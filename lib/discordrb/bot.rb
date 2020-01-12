@@ -814,7 +814,12 @@ module Discordrb
       end
 
       debug('Got data, now creating the bot.')
-      @voices[server_id] = Discordrb::Voice::VoiceBot.new(channel, self, token, @session_id, endpoint)
+
+      begin
+        @voices[server_id] = Discordrb::Voice::VoiceBot.new(channel, self, token, @session_id, endpoint)
+      rescue => e
+        Discordrb::LOGGER.error e
+      end
     end
 
     # Internal handler for CHANNEL_CREATE

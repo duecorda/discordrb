@@ -98,6 +98,8 @@ module Discordrb::Voice
 
       @encoder = Encoder.new
       @ws.connect
+    rescue IOError => e
+      Discordrb::LOGGER.warn e
     rescue StandardError => e
       Discordrb::LOGGER.log_exception(e)
       raise
