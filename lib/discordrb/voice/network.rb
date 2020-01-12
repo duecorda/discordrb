@@ -65,10 +65,6 @@ module Discordrb::Voice
       @ssrc = ssrc
     end
 
-    def close
-      @socket.close
-    end
-
     # Waits for a UDP discovery reply, and returns the sent data.
     # @return [Array(String, Integer)] the IP and port received from the discovery reply.
     def receive_discovery_reply
@@ -302,8 +298,6 @@ module Discordrb::Voice
       @thread = Thread.new do
         Thread.current[:discordrb_name] = 'vws'
         init_ws
-      rescue
-        @udp.close
       end
 
       @bot.debug('Started websocket initialization, now waiting for UDP discovery reply')
@@ -318,7 +312,10 @@ module Discordrb::Voice
       @bot.debug('Waiting for op 4 now')
 
       # Wait for op 4, then finish
-      sleep 0.05 until @ready
+      sleep 0.05 until @ready || @client.closed?
+      unless @ready
+        # TODO: handle this case
+      end
     end
 
     # Disconnects the websocket and kills the thread
@@ -350,23 +347,14 @@ module Discordrb::Voice
         host,
         method(:websocket_open),
         method(:websocket_message),
-        method(:vws_close_handler),
-        method(:vws_close_handler)
+        proc { |e| Discordrb::LOGGER.error "VWS error: #{e}" },
+        proc { |e| Discordrb::LOGGER.warn "VWS close: #{e}" }
       )
 
       @bot.debug('VWS connected')
+
       # Block any further execution
       heartbeat_loop
-    end
-
-    def vws_close_handler(msg)
-      @heartbeat_running = false
-      Discordrb::LOGGER.warn msg
-      if msg.code
-        @thread.raise "code: #{msg.code}, #{msg.data}"
-      else
-        @thread.raise
-      end
     end
 
   end
