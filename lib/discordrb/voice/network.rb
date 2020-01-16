@@ -318,7 +318,7 @@ module Discordrb::Voice
       @bot.debug('Waiting for op 4 now')
 
       # Wait for op 4, then finish
-      sleep 0.05 until @ready || @client.client.closed?
+      sleep 0.05 until @ready || !@client.open?
       unless @ready
         @udp.close
       end

@@ -64,6 +64,10 @@ module Discordrb
       @client.close
     end
 
+    def open?
+      @client.open?
+    end
+
     # @return [Thread] the internal WSCS thread
     def thread
       @client.thread
