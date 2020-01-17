@@ -263,6 +263,8 @@ module Discordrb::Voice
         # Opcode 2 contains data to initialize the UDP connection
         @ws_data = packet['d']
 
+        @ready = true
+
         @ssrc = @ws_data['ssrc']
         @port = @ws_data['port']
 
@@ -274,7 +276,6 @@ module Discordrb::Voice
         # Opcode 4 sends the secret key used for encryption
         @ws_data = packet['d']
 
-        @ready = true
         @udp.secret_key = @ws_data['secret_key'].pack('C*')
         @udp.mode = @ws_data['mode']
       when 8
@@ -303,24 +304,13 @@ module Discordrb::Voice
         Thread.current[:discordrb_name] = 'vws'
         init_ws
       rescue
-        @udp.close
+        @abort = true
       end
 
-      @bot.debug('Started websocket initialization, now waiting for UDP discovery reply')
-
-      # Now wait for opcode 2 and the resulting UDP reply packet
-      ip, port = @udp.receive_discovery_reply
-      @bot.debug("UDP discovery reply received! #{ip} #{port}")
-
-      # Send UDP init packet with received UDP data
-      send_udp_connection(ip, port, @udp_mode)
-
-      @bot.debug('Waiting for op 4 now')
-
-      # Wait for op 4, then finish
-      sleep 0.05 until @ready || !@client.open?
-      unless @ready
-        @udp.close
+      sleep 0.05 until @ready || @abort
+      if @ready
+        ip, port = @udp.receive_discovery_reply
+        send_udp_connection(ip, port, @udp_mode)
       end
     end
 
