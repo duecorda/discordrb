@@ -333,9 +333,17 @@ module Discordrb
 
       debug('Voice channel init packet sent! Now waiting.')
 
-      sleep(0.05) until @voices[server_id]
-      debug('Voice connect succeeded!')
-      @voices[server_id]
+
+      Timeout::timeout(2) do 
+        sleep(0.05) until @voices[server_id]
+        debug('Voice connect succeeded!')
+        @voices[server_id]
+      end
+    rescue Timeout::Error => e
+      @gateway.send_voice_state_update(server_id.to_s, nil, false, false)
+      @voices[server_id].destroy if @voices[server_id]
+      @voices.delete(server_id)
+      raise e
     end
 
     # Disconnects the client from a specific voice connection given the server ID. Usually it's more convenient to use
