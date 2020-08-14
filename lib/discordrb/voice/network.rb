@@ -356,8 +356,10 @@ module Discordrb::Voice
     def websocket_close_handler(msg)
       @heartbeat_running = false
       Discordrb::LOGGER.warn msg
-      if msg.code
-        @thread.raise "code: #{msg.code}, #{msg.data}"
+      _code = msg.code rescue nil
+      _data = msg.data rescue nil
+      if _code && _data
+        @thread.raise "code: #{_code}, #{_data}"
       else
         @thread.raise
       end
