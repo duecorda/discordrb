@@ -77,16 +77,16 @@ module Discordrb
       @member_count = data['member_count']
       @splash_id = nil
       @banner_id = nil
-      @features = data['features'].map { |element| element.downcase.to_sym }
+      @features = data['features'].to_a.map { |element| element.downcase.to_sym }
       @members = {}
       @voice_states = {}
       @emoji = {}
 
-      process_roles(data['roles'])
-      process_emoji(data['emojis'])
-      process_members(data['members'])
-      process_presences(data['presences'])
-      process_voice_states(data['voice_states'])
+      process_roles(data['roles']) unless data['roles'].nil?
+      process_emoji(data['emojis']) unless data['emojis'].nil?
+      process_members(data['members']) unless data['members'].nil?
+      process_presences(data['presences']) unless data['presences'].nil?
+      process_voice_states(data['voice_states']) unless data['voice_states'].nil?
 
       # Whether this server's members have been chunked (resolved using op 8 and GUILD_MEMBERS_CHUNK) yet
       @chunked = false
