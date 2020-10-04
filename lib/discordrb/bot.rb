@@ -336,9 +336,16 @@ module Discordrb
 
       debug('Voice channel init packet sent! Now waiting.')
 
-      sleep(0.05) until @voices[server_id]
-      debug('Voice connect succeeded!')
-      @voices[server_id]
+      Timeout::timeout(3) do
+        sleep(0.05) until @voices[server_id]
+        debug('Voice connect succeeded!')
+        @voices[server_id]
+      end
+    rescue Timeout::Error => e
+      @gateway.send_voice_state_update(server_id.to_s, nil, false, false)
+      @voices[server_id].destroy if @voices[server_id]
+      @voices.delete(server_id)
+      raise e
     end
 
     # Disconnects the client from a specific voice connection given the server ID. Usually it's more convenient to use
@@ -774,13 +781,13 @@ module Discordrb
 
     # Internal handler for VOICE_STATE_UPDATE
     def update_voice_state(data)
-      @session_id = data['session_id']
+      user_id = data['user_id'].to_i
+      @session_id = data['session_id'] if user_id == @profile.id
 
       server_id = data['guild_id'].to_i
       server = server(server_id)
       return unless server
 
-      user_id = data['user_id'].to_i
       old_voice_state = server.voice_states[user_id]
       old_channel_id = old_voice_state.voice_channel&.id if old_voice_state
 
@@ -820,7 +827,11 @@ module Discordrb
       end
 
       debug('Got data, now creating the bot.')
-      @voices[server_id] = Discordrb::Voice::VoiceBot.new(channel, self, token, @session_id, endpoint)
+      begin
+        @voices[server_id] = Discordrb::Voice::VoiceBot.new(channel, self, token, @session_id, endpoint)
+      rescue => e
+        Discordrb::LOGGER.error e
+      end
     end
 
     # Internal handler for CHANNEL_CREATE

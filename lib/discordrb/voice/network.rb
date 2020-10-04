@@ -65,6 +65,10 @@ module Discordrb::Voice
       @ssrc = ssrc
     end
 
+    def close
+      @socket.close
+    end
+
     # Waits for a UDP discovery reply, and returns the sent data.
     # @return [Array(String, Integer)] the IP and port received from the discovery reply.
     def receive_discovery_reply
@@ -259,6 +263,7 @@ module Discordrb::Voice
         # Opcode 2 contains data to initialize the UDP connection
         @ws_data = packet['d']
 
+        @ready = true
         @ssrc = @ws_data['ssrc']
         @port = @ws_data['port']
 
@@ -270,7 +275,6 @@ module Discordrb::Voice
         # Opcode 4 sends the secret key used for encryption
         @ws_data = packet['d']
 
-        @ready = true
         @udp.secret_key = @ws_data['secret_key'].pack('C*')
         @udp.mode = @ws_data['mode']
       when 8
@@ -298,21 +302,15 @@ module Discordrb::Voice
       @thread = Thread.new do
         Thread.current[:discordrb_name] = 'vws'
         init_ws
+      rescue
+        @abort = true
       end
 
-      @bot.debug('Started websocket initialization, now waiting for UDP discovery reply')
-
-      # Now wait for opcode 2 and the resulting UDP reply packet
-      ip, port = @udp.receive_discovery_reply
-      @bot.debug("UDP discovery reply received! #{ip} #{port}")
-
-      # Send UDP init packet with received UDP data
-      send_udp_connection(ip, port, @udp_mode)
-
-      @bot.debug('Waiting for op 4 now')
-
-      # Wait for op 4, then finish
-      sleep 0.05 until @ready
+      sleep 0.05 until @ready || @abort
+      if @ready
+        ip, port = @udp.receive_discovery_reply
+        send_udp_connection(ip, port, @udp_mode)
+      end
     end
 
     # Disconnects the websocket and kills the thread
@@ -344,14 +342,26 @@ module Discordrb::Voice
         host,
         method(:websocket_open),
         method(:websocket_message),
-        proc { |e| Discordrb::LOGGER.error "VWS error: #{e}" },
-        proc { |e| Discordrb::LOGGER.warn "VWS close: #{e}" }
+        method(:websocket_close_handler),
+        method(:websocket_close_handler)
       )
 
       @bot.debug('VWS connected')
 
       # Block any further execution
       heartbeat_loop
+    end
+
+    def websocket_close_handler(msg)
+      @heartbeat_running = false
+      Discordrb::LOGGER.warn msg
+      _code = msg.code rescue nil
+      _data = msg.data rescue nil
+      if _code && _data
+        @thread.raise "code: #{_code}, #{_data}"
+      else
+        @thread.raise
+      end
     end
   end
 end
