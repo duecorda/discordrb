@@ -71,7 +71,7 @@ module Discordrb
       update_data(data)
 
       @large = data['large']
-      @member_count = data['member_count']
+      @member_count = data['member_count'] || 0
       @splash_id = nil
       @banner_id = nil
       @features = data['features'].to_a.map { |element| element.downcase.to_sym }
