@@ -304,6 +304,7 @@ module Discordrb::Voice
         init_ws
       rescue
         @abort = true
+        @udp.close rescue nil
       end
 
       sleep 0.05 until @ready || @abort
@@ -316,6 +317,8 @@ module Discordrb::Voice
     # Disconnects the websocket and kills the thread
     def destroy
       @heartbeat_running = false
+      @udp.close rescue nil
+      Thread.kill(@thread) rescue nil
     end
 
     private
